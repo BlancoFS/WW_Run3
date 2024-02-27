@@ -1,6 +1,27 @@
 # WW_Run3
 PlotConfiguration for WW Run 3 analysis
 
+## Install
+
+```
+git clone https://github.com/BlancoFS/mkShapesRDF.git -b Run3
+
+export MY_WORKDIR=$PWD
+
+cd mkShapesRDF
+
+./install.sh
+
+source start.sh
+```
+
+## Once installed, every time you log in
+
+```
+cd mkShapesRDF
+
+source start.sh
+```
 
 ## Warnings
 
@@ -11,7 +32,7 @@ There have been two issues in the Postprocessing step. They are explained here:
 - Jet collection not correctly created (Several problems with the jet_veto_maps and the PU ID, not existing anymore with Puppi). The jet collection is correctly recreated on-the-fly in runner.py. To solve the issue:
 
 ```
-cp runner.py $YOUR_WORKDIR/mkShapesRDF/mkShapesRDF/shapeAnalysis/
+cp runner.py $MY_WORKDIR/mkShapesRDF/mkShapesRDF/shapeAnalysis/
 ```
 
 ## Run the code
