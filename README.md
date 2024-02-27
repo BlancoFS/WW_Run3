@@ -40,13 +40,19 @@ cp runner.py $MY_WORKDIR/mkShapesRDF/mkShapesRDF/shapeAnalysis/
 Always compile after making any change in the configuration.
 
 ```
+cd examples
+
+git clone https://github.com/BlancoFS/WW_Run3.git
+
+cd WW_Run3
+
 mkShapesRDF -c 1
 
 mkShapesRDF -o 0 -f . -b 1
 
-hadd rootFile/... ...
+hadd -fk -j 8 rootFiles/mkShapes__WW_2022.root rootFiles/mkShapes__WW_2022__ALL__*
 
 mkPlot
 ```
 
-
+The plots should be created in the `plots` folder.
