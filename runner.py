@@ -251,14 +251,14 @@ class RunAnalysis:
                     continue
                 if nuisance.get("type", "") == "shape":
                     if nuisance.get("kind", "") == "suffix":
-                        if nuisance["folderUp"] in usedFolders:
+                        if nuisance["folderUp"] in usedFolders or nuisance["folderUp"]=="":
                             continue
                         usedFolders.append(nuisance["folderUp"])
 
                         friendsFiles += RunAnalysis.getNuisanceFiles(nuisance, files)
 
             tnom = RunAnalysis.getTTreeNomAndFriends(files, friendsFiles)
-
+            
             #### --------- FIXME : Not needed if correct jets used
             self.inputFiles = tnom 
 
@@ -266,8 +266,8 @@ class RunAnalysis:
                 df = ROOT.RDataFrame(tnom)
                 df = df.Range(limit)
             else:
-                ROOT.EnableImplicitMT()
-                #ROOT.EnableImplicitMT(1)
+                #ROOT.EnableImplicitMT()
+                ROOT.EnableImplicitMT(1)
                 df = ROOT.RDataFrame(tnom)
 
 
@@ -436,6 +436,7 @@ class RunAnalysis:
         """
         Loads systematics of type ``suffix`` in the dataframes.
         """
+        print("Loading systematic suffix!!!")
         for sampleName in self.dfs.keys():
             for index in self.dfs[sampleName].keys():
                 df = self.dfs[sampleName][index]["df"]
@@ -447,10 +448,12 @@ class RunAnalysis:
                         continue
                     if nuisance.get("type", "") == "shape":
                         if nuisance.get("kind", "") == "suffix":
+
                             variation = nuisance["mapDown"]
                             variedCols = list(
                                 filter(lambda k: k.endswith(variation), columnNames)
                             )
+                            
                             if len(variedCols) == 0:
                                 print(f"No varied columns for {variation}")
                                 sys.exit()
@@ -470,6 +473,7 @@ class RunAnalysis:
                                 ):
                                     # baseCol is never used -> useless to register variation
                                     continue
+
                                 if "bool" not in str(df.GetColumnType(baseCol)).lower():
                                     varNameDown = (
                                         baseCol
@@ -496,6 +500,7 @@ class RunAnalysis:
                                     + f"{varNameDown}, {varNameUp}"
                                     + "}"
                                 )
+                                
                                 df = df.Vary(
                                     baseCol,
                                     expr,
@@ -1405,11 +1410,25 @@ def recomputeJets(self, df):
     if isData:
         return df
 
-    
-    ### JER
+
+
+    ### CMSJMECalculator
 
     from CMSJMECalculators.jetdatabasecache import JetDatabaseCache
+    jecDBCache = JetDatabaseCache("JECDatabase", repository="cms-jet/JECDatabase")
     jrDBCache = JetDatabaseCache("JRDatabase", repository="cms-jet/JRDatabase")
+
+    txtL1JEC = jecDBCache.getPayload(JEC_era, "L1FastJet", jet_object)
+
+    txtJECs = []
+    txtJECs.append(txtL1JEC)
+    txtJECs.append(jecDBCache.getPayload(JEC_era, "L2Relative", jet_object))
+    txtJECs.append(jecDBCache.getPayload(JEC_era, "L3Absolute", jet_object))
+    txtJECs.append(jecDBCache.getPayload(JEC_era, "L2L3Residual", jet_object))
+
+    txtUnc = jecDBCache.getPayload(
+        JEC_era, "UncertaintySources", jet_object, ""
+    )
 
     txtPtRes = jrDBCache.getPayload(JER_era, "PtResolution", jet_object)
     txtSF = jrDBCache.getPayload(JER_era, "SF", jet_object)
@@ -1420,19 +1439,172 @@ def recomputeJets(self, df):
     loadJMESystematicsCalculators()
 
     
+    ### MET
+    
+    MET = "PuppiMET"
+    ROOT.gInterpreter.ProcessLine(
+        f"Type1METVariationsCalculator my{MET}" + "VarCalc{}"
+    )
+    calcMET = getattr(ROOT, f"my{MET}VarCalc")
+    calcMET.setUnclusteredEnergyTreshold(15.0)
+    # redo JEC, push_back corrector parameters for different levels
+    jecParams = getattr(ROOT, "std::vector<JetCorrectorParameters>")()
+    for txtJEC in txtJECs:
+        jecParams.push_back(ROOT.JetCorrectorParameters(txtJEC))
+    calcMET.setJEC(jecParams)
+    
+    jecL1Params = getattr(ROOT, "std::vector<JetCorrectorParameters>")()
+    jecL1Params.push_back(ROOT.JetCorrectorParameters(txtL1JEC))
+    calcMET.setL1JEC(jecL1Params)
+    # calculate JES uncertainties (repeat for all sources)
+    
+    with open(txtUnc) as f:
+        lines = f.read().split("\n")
+        sources = [
+            x for x in lines if x.startswith("[") and x.endswith("]")
+        ]
+        sources = [x[1:-1] for x in sources]
+
+    for s in sources:
+        jcp_unc = ROOT.JetCorrectorParameters(txtUnc, s)
+        calcMET.addJESUncertainty(s, jcp_unc)
+
+    # Smear jets, with JER uncertainty
+    calcMET.setSmearing(
+        txtPtRes,
+        txtSF,
+        True,
+        False,
+        -1.0,
+        -1.0,  # decorrelate for different regions
+    )  # use hybrid recipe, matching parameters
+    calcMET.setIsT1SmearedMET(True)
+    
+    jesSources = calcMET.available()
+    print("DEBUG module")
+    skip = 1
+    skip += 6 * 2
+    # first are JERs, last two are unclustered unc.
+    jesSources = jesSources[skip:-2][::2]
+    jesSources = list(map(lambda k: str(k)[3:-2], jesSources))
+    # jesSources = sorted(jesSources)
+    jesSources = list(map(lambda k: "JES" + k, jesSources))
+    #print(jesSources)
+    
+    # list of columns to be passed to myJetVarCal produce
+    cols = []
+    
+    JetColl = "newJet3"
+    
+    df = df.Define("newJet3_pt", "MyCleanJet_pt")
+    df = df.Define("newJet3_eta", "MyCleanJet_eta")
+    df = df.Define("newJet3_phi", "MyCleanJet_phi")
+    df = df.Define("newJet3_jetIdx", "MyCleanJet_jetIdx")
+    
+    cols.append(f"{JetColl}_pt")
+    cols.append(f"{JetColl}_eta")
+    cols.append(f"{JetColl}_phi")
+    cols.append(f"Take(Jet_mass, {JetColl}_jetIdx)")
+    cols.append(f"Take(Jet_rawFactor, {JetColl}_jetIdx)")
+    cols.append(f"Take(Jet_area, {JetColl}_jetIdx)")
+    cols.append(f"Take(Jet_muonSubtrFactor, {JetColl}_jetIdx)")
+    cols.append(f"Take(Jet_neEmEF, {JetColl}_jetIdx)")
+    cols.append(f"Take(Jet_chEmEF, {JetColl}_jetIdx)")
+    cols.append(f"Take(Jet_jetId, {JetColl}_jetIdx)")
+    
+    # rho
+    cols.append("Rho_fixedGridRhoFastjetAll")
+    
+    cols.append(f"Take(Jet_partonFlavour, {JetColl}_jetIdx)")
+    # seed
+    cols.append(
+        f"(run<<20) + (luminosityBlock<<10) + event + 1 + int({JetColl}_eta.size()>0 ? {JetColl}_eta[0]/.01 : 0)"
+    )
+    
+    # gen jet coll
+    cols.append("GenJet_pt")
+    cols.append("GenJet_eta")
+    cols.append("GenJet_phi")
+    cols.append("GenJet_mass")
+    
+    RawMET = "RawMET" if "Puppi" not in MET else "RawPuppiMET"
+    #RawMET = MET
+    cols.append(f"{RawMET}_phi")
+    cols.append(f"{RawMET}_pt")
+    
+    cols.append("MET_MetUnclustEnUpDeltaX")
+    cols.append("MET_MetUnclustEnUpDeltaY")
+    
+    df = df.Redefine('EmptyLowPtJet', 'ROOT::RVecF{}')
+    #for _ in range(5):
+    #    cols.append('EmptyLowPtJet')
+    cols.append("CorrT1METJet_rawPt")
+    cols.append("CorrT1METJet_eta")
+    cols.append("CorrT1METJet_phi")
+    cols.append("CorrT1METJet_area")
+    cols.append("CorrT1METJet_muonSubtrFactor")
+    cols.append("ROOT::RVecF {}")
+    cols.append("ROOT::RVecF {}")
+    
+    df = df.Define(
+        f"{MET}Vars", f"my{MET}VarCalc.produce({', '.join(cols)})"
+    )
+    
+    df = df.Redefine(f"{MET}_pt", f"{MET}Vars.pt(0)")
+    df = df.Redefine(f"{MET}_phi", f"{MET}Vars.phi(0)")
+
+    _sources = []        
+    _sources = [f"JER_{i}" for i in range(6)]
+    _sources += jesSources
+    sources = _sources.copy()
+    METsources = _sources.copy()
+    METsources += ["MET"]  # last one is the unclustered variation
+
+    #print("\n")
+    #print("MET uncertainties: ")
+    #print(METsources)
+
+    for variable in [MET + "_pt", MET + "_phi"]:
+        for i, source in enumerate(METsources):
+            up = f"{MET}Vars.{variable.split('_')[-1]}({2*i+1})"
+            do = f"{MET}Vars.{variable.split('_')[-1]}({2*i+1+1})"
+            
+            df = df.Define(
+                variable + f"_{source}up",
+                up
+            )
+            df = df.Define(
+                variable + f"_{source}do",
+                do
+            )
+                
+            #df = df.Vary(
+            #    variable,
+            #    "ROOT::RVecD{" + up + ", " + do + "}",
+            #    ["up", "do"],
+            #    source,
+            #)
+    
+    ### JER
+       
     ROOT.gInterpreter.ProcessLine("JetVariationsCalculator myJetVarCalc{}")
     calc = getattr(ROOT, "myJetVarCalc")
 
-    # Smear jets, with JER uncertainty
-    #calc.setSmearing(
-    #    txtPtRes,
-    #    txtSF,
-    #    True,
-    #    True,
-    #    0.2,
-    #    10.0,  # decorrelate for different regions
-    #)  # use hybrid recipe, matching parameters
-
+    jecParams = getattr(ROOT, "std::vector<JetCorrectorParameters>")()
+    for txtJEC in txtJECs:
+        jecParams.push_back(ROOT.JetCorrectorParameters(txtJEC))
+    calc.setJEC(jecParams)
+    # calculate JES uncertainties (repeat for all sources)
+    
+    with open(txtUnc) as f:
+        lines = f.read().split("\n")
+        sources = [x for x in lines if x.startswith("[") and x.endswith("]")]
+        sources = [x[1:-1] for x in sources]
+        
+    for s in sources:
+        jcp_unc = ROOT.JetCorrectorParameters(txtUnc, s)
+        calc.addJESUncertainty(s, jcp_unc)
+    
     calc.setSmearing(
         txtPtRes,
         txtSF,
@@ -1441,9 +1613,12 @@ def recomputeJets(self, df):
         -1.0,
         -1.0,
     )
-    
+    jesSources = calc.available()
     skip = 1
     skip += 6 * 2
+    jesSources = jesSources[skip:][::2]
+    jesSources = list(map(lambda k: str(k)[3:-2], jesSources))
+    jesSources = list(map(lambda k: "JES" + k, jesSources))
     
     # list of columns to be passed to myJetVarCal produce
     cols = []
@@ -1495,6 +1670,327 @@ def recomputeJets(self, df):
     df = df.Redefine("MyCleanJet_phi", "Take( MyCleanJet_phi, MyCleanJet_sorting)")
     df = df.Redefine("MyCleanJet_mass", "Take( MyCleanJet_mass, MyCleanJet_sorting)")
     df = df.Redefine("MyCleanJet_jetIdx", "Take( MyCleanJet_jetIdx, MyCleanJet_sorting)")    
+
+    _sources = []
+    _sources = [f"JER_{i}" for i in range(6)]
+    _sources += jesSources
+    sources = _sources.copy()
+
+    #print("\n")
+    #print("JES uncertainties: ")
+    #print(sources)
+    
+    for i, source in enumerate(sources):
+        
+        variations_pt = []
+        variations_jetIdx = []
+        variations_mass = []
+        variations_phi = []
+        variations_eta = []
+        for j, tag in enumerate(["up", "down"]):
+            variation_pt = f"jetVars.pt({2*i+1+j})"
+            variation_mass = f"jetVars.mass({2*i+1+j})"
+            df = df.Define(
+                f"tmp_CleanJet_pt__JES_{source}_{tag}",
+                variation_pt,
+            )
+            df = df.Define(
+                f"tmp_CleanJet_pt__JES_{source}_{tag}_sorting",
+                f"ROOT::VecOps::Reverse(ROOT::VecOps::Argsort(tmp_CleanJet_pt__JES_{source}_{tag}))",
+            )
+            variations_pt.append(
+                f"Take(tmp_CleanJet_pt__JES_{source}_{tag}, tmp_CleanJet_pt__JES_{source}_{tag}_sorting)"
+            )
+            
+            df = df.Define(
+                f"MyCleanJet_cleanJetIdx_preJES_{source}_{tag}",
+                f"tmp_CleanJet_pt__JES_{source}_{tag}_sorting",
+            )
+            
+            variations_jetIdx.append(
+                f"Take({JetColl}_jetIdx, tmp_CleanJet_pt__JES_{source}_{tag}_sorting)",
+            )
+            
+            df = df.Define(
+                f"tmp_CleanJet_mass__JES_{source}_{tag}",
+                f"Take({variation_mass}, tmp_CleanJet_pt__JES_{source}_{tag}_sorting)",
+            )
+            variations_mass.append(f"tmp_CleanJet_mass__JES_{source}_{tag}")
+            
+            variations_phi.append(
+                f"Take({JetColl}_phi, tmp_CleanJet_pt__JES_{source}_{tag}_sorting)"
+            )
+            variations_eta.append(
+                f"Take({JetColl}_eta, tmp_CleanJet_pt__JES_{source}_{tag}_sorting)"
+            )
+
+            
+        tags = ["up", "do"]
+        
+        df = df.Define(
+            f"MyCleanJet_pt_{source}up",
+            variations_pt[0]
+        )
+        df = df.Define(
+	    f"MyCleanJet_pt_{source}do",
+            variations_pt[1]
+	)    
+
+        df = df.Define(
+            f"MyCleanJet_eta_{source}up",
+            variations_eta[0]
+        )
+        df = df.Define(
+            f"MyCleanJet_eta_{source}do",
+            variations_eta[1]
+        )
+
+        df = df.Define(
+            f"MyCleanJet_phi_{source}up",
+            variations_phi[0]
+        )
+        df = df.Define(
+            f"MyCleanJet_phi_{source}do",
+            variations_phi[1]
+        )
+
+        df = df.Define(
+            f"MyCleanJet_jetIdx_{source}up",
+            variations_jetIdx[0]
+        )
+        df = df.Define(
+            f"MyCleanJet_jetIdx_{source}do",
+            variations_jetIdx[1]
+        )
+
+        df = df.Define(
+            f"MyCleanJet_mass_{source}up",
+            variations_mass[0]
+        )
+        df = df.Define(
+            f"MyCleanJet_mass_{source}do",
+            variations_mass[1]
+        )
+
+        '''
+        df = df.Vary(
+            "MyCleanJet_pt",
+            "ROOT::RVec<ROOT::RVecF>{"
+            + variations_pt[0]
+            + ", "
+            + variations_pt[1]
+            + "}",
+            tags,
+            source,
+        )
+        
+        df = df.Vary(
+            "MyCleanJet_jetIdx",
+            "ROOT::RVec<ROOT::RVecI>{" + variations_jetIdx[0]
+            # + "CleanJet_jetIdx"
+            + ", " + variations_jetIdx[1]
+            # + "CleanJet_jetIdx"
+            + "}",
+            tags,
+            source,
+        )
+        
+        df = df.Vary(
+            "MyCleanJet_mass",
+            "ROOT::RVec<ROOT::RVecF>{" + variations_mass[0]
+            # + "CleanJet_mass"
+            + ", " + variations_mass[1]
+            # + "CleanJet_mass"
+            + "}",
+            tags,
+            source,
+        )
+        
+        df = df.Vary(
+            "MyCleanJet_phi",
+            "ROOT::RVec<ROOT::RVecF>{" + variations_phi[0]
+            # + "CleanJet_phi"
+            + ", " + variations_phi[1]
+            # + "CleanJet_phi"
+            + "}",
+            tags,
+            source,
+        )
+        
+        df = df.Vary(
+            "MyCleanJet_eta",
+            "ROOT::RVec<ROOT::RVecF>{" + variations_eta[0]
+            # + "CleanJet_eta"
+            + ", " + variations_eta[1]
+            # + "CleanJet_eta"
+            + "}",
+            tags,
+            source,
+        )
+        '''
+        
+    if isEE:
+        era = 2022
+        algo = "deepJet"
+        selectedWPs = ["shape"]
+        jesSystsForShape = ["jes","jesAbsoluteStat","jesAbsoluteScale","jesAbsoluteMPFBias","jesFragmentation","jesSinglePionECAL","jesSinglePionHCAL","jesFlavorQCD",
+                            "jesRelativeJEREC1","jesRelativeJEREC2","jesRelativeJERHF","jesRelativePtBB","jesRelativePtEC1","jesRelativePtEC2","jesRelativePtHF","jesRelativeBal",
+                            "jesRelativeSample","jesRelativeFSR","jesRelativeStatFSR","jesRelativeStatEC","jesRelativeStatHF","jesPileUpDataMC","jesPileUpPtRef","jesPileUpPtBB",
+                            "jesPileUpPtEC1","jesPileUpPtEC2","jesPileUpPtHF"]
+
+        mode = "shape"
+        pathToJson = "/afs/cern.ch/work/s/sblancof/private/Run3Analysis/mkShapesRDF/examples/polarization/btagging_Summer22EE.json"
+
+    else:
+
+        era = 2022
+        algo = "deepJet"
+        selectedWPs = ["shape"]
+        jesSystsForShape = ["jes","jesAbsoluteStat","jesAbsoluteScale","jesAbsoluteMPFBias","jesFragmentation","jesSinglePionECAL","jesSinglePionHCAL","jesFlavorQCD",
+                            "jesRelativeJEREC1","jesRelativeJEREC2","jesRelativeJERHF","jesRelativePtBB","jesRelativePtEC1","jesRelativePtEC2","jesRelativePtHF","jesRelativeBal",
+                            "jesRelativeSample","jesRelativeFSR","jesRelativeStatFSR","jesRelativeStatEC","jesRelativeStatHF","jesPileUpDataMC","jesPileUpPtRef","jesPileUpPtBB",
+                            "jesPileUpPtEC1","jesPileUpPtEC2","jesPileUpPtHF"]
+
+        mode = "shape"
+        pathToJson = "/afs/cern.ch/work/s/sblancof/private/Run3Analysis/mkShapesRDF/examples/polarization/btagging_Summer22.json"
+
+
+
+
+    max_abs_eta = """2.49999"""
+    min_pt = """20.0001"""
+
+    branch_algo = {"deepJet": "Jet_btagDeepFlavB", "particleNet": "Jet_btagPNetB", "robustParticleTransformer": "Jet_btagRobustParTAK4B"}
+    branch_sfalgo = {"deepJet": "deepjet", "particleNet": "partNet", "robustParticleTransformer": "partTransformer"}
+    
+    branch_name = branch_algo[algo]
+    branch_sfname = branch_sfalgo[algo]
+
+
+    systs = []
+    systs.append("up")
+    systs.append("down")
+    central_and_systs = ["central"]
+    central_and_systs.extend(systs)
+    
+    systs_shape_corr = []
+    for syst in [
+            "lf",
+            "hf",
+            "hfstats1",
+            "hfstats2",
+            "lfstats1",
+            "lfstats2",
+            "cferr1",
+            "cferr2"] + jesSystsForShape:
+        systs_shape_corr.append("up_%s" % syst)
+        systs_shape_corr.append("down_%s" % syst)
+        central_and_systs_shape_corr = ["central"]
+        central_and_systs_shape_corr.extend(systs_shape_corr)
+
+    shape_syst = [
+            "lf",
+            "hf",
+            "hfstats1",
+            "hfstats2",
+            "lfstats1",
+            "lfstats2",
+            "cferr1",
+            "cferr2",
+        ] + jesSystsForShape
+
+
+    cset_btag_name = f"cset_btag_{era}_{mode}_{algo}"
+    cset_btag_sf_name = f"cset_btag_sf_{era}_{mode}_{algo}"
+
+    inputFileName = pathToJson
+    
+    if not hasattr(ROOT, cset_btag_name):
+        # check if cset_btag is already defined
+        
+        ROOT.gROOT.ProcessLine(
+            f"""
+            auto {cset_btag_name} = correction::CorrectionSet::from_file("{inputFileName}");
+            """
+        )
+        
+    ### Load the correction given algo and mode  # noqa: E266
+    if not hasattr(ROOT, cset_btag_sf_name):
+        # check if cset_btag_sf is already defined
+        s = f"""
+        correction::Correction::Ref {cset_btag_sf_name} = (correction::Correction::Ref) {cset_btag_name}->at("{algo}_{mode}");
+        """
+    else:
+        # if already defined store the new cset_btag_sf
+        s = f"""
+        {cset_btag_sf_name} = (correction::Correction::Ref) {cset_btag_name}->at("{algo}_{mode}");
+        """
+
+
+    ROOT.gROOT.ProcessLine(s)
+
+    suffix = f"{mode}_{algo}"
+    getbtagSF_shape_name = f"getbtagSF_shape_{suffix}"
+    getbtagSF_wp_name = f"getbtagSF_wp_name_{suffix}"
+
+    if mode == "shape":
+        if not hasattr(ROOT, getbtagSF_shape_name):
+            ROOT.gInterpreter.Declare(
+                "ROOT::RVecF "
+                + getbtagSF_shape_name
+                + """
+                (std::string syst, ROOT::RVecI flav, ROOT::RVecF eta, ROOT::RVecF pt, ROOT::RVecF btag){
+                ROOT::RVecF sf(pt.size(), 1.0);
+                
+                for (unsigned int i = 0, n = pt.size(); i < n; ++i) {
+                if (pt[i]<"""
+                + min_pt
+                + """ || abs(eta[i])>"""
+                + max_abs_eta
+                + """ || btag[i]<0.0 || isnan(btag[i]) || btag[i]>19.999){continue;}
+                if (syst.find("jes") != std::string::npos && flav[i]!=0){continue;}
+                if (syst.find("cferr") != std::string::npos){
+                if (flav[i]==4){
+                auto sf_tmp = """+cset_btag_sf_name+"""->evaluate({syst, abs(flav[i]), abs(eta[i]), pt[i], btag[i]});
+                sf[i] = float(sf_tmp);
+                }else{
+                continue;
+                }
+                }else if (syst.find("hf") != std::string::npos || syst.find("lf") != std::string::npos){
+                if (flav[i]==4){
+                continue;
+                }else{
+                auto sf_tmp = """+cset_btag_sf_name+"""->evaluate({syst, abs(flav[i]), abs(eta[i]), pt[i], btag[i]});
+                sf[i] = float(sf_tmp);
+                }
+                }else{
+                auto sf_tmp = """+cset_btag_sf_name+"""->evaluate({syst, abs(flav[i]), abs(eta[i]), pt[i], btag[i]});
+                sf[i] = float(sf_tmp);
+                }
+                }
+                return sf;
+                }
+                """
+            )
+
+        for central_or_syst in central_and_systs_shape_corr:
+            if central_or_syst == "central":
+                df = df.Redefine(
+                    f"Jet_btagSF_{branch_sfname}_shape",
+                    f'{getbtagSF_shape_name}("{central_or_syst}", Jet_hadronFlavour, Jet_eta, Jet_pt, {branch_name})',
+                )
+            else:
+                df = df.Redefine(
+                    f"Jet_btagSF_{branch_sfname}_shape_{central_or_syst}",
+                    f'{getbtagSF_shape_name}("{central_or_syst}", Jet_hadronFlavour, Jet_eta, Jet_pt, {branch_name})',
+                )
+
+                
+
+
+
+
+
     
     return df
     

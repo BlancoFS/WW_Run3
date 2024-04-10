@@ -196,7 +196,7 @@ files = nanoGetSampleFiles(mcDirectory, 'WWTo2L2Nu')
 
 samples['WW'] = {
     'name': files,
-    'weight': mcCommonWeight + '*8.174732641*1.0386', #+ '*1.03', ## To take into account missing ggWW
+    'weight': mcCommonWeight + '*8.174732641', #+ '*1.03', ## To take into account missing ggWW
     'FilesPerJob': 2,
 }
 
@@ -205,9 +205,104 @@ files = nanoGetSampleFiles(mcDirectory2, 'WWTo2L2Nu')
 
 samples['WW_EE'] = {
     'name': files,
-    'weight': mcCommonWeight + '*27.0*1.0386', #+ '*1.03', ## To take into account missing ggWW
+    'weight': mcCommonWeight + '*27.0', #+ '*1.03', ## To take into account missing ggWW
     'FilesPerJob': 2,
 }
+
+
+######
+###### POLARIZATION
+######
+
+files = nanoGetSampleFiles(mcDirectory, 'WWTo2L2Nu_LL')
+samples['WW_LL'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*8.174732641',
+    'FilesPerJob': 2,
+}
+files = nanoGetSampleFiles(mcDirectory2, 'WWTo2L2Nu_LL')
+samples['WW_LL_EE'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*27.0',
+    'FilesPerJob': 2,
+}
+
+files = nanoGetSampleFiles(mcDirectory, 'WWTo2L2Nu_TT')
+samples['WW_TT'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*8.174732641',
+    'FilesPerJob': 2,
+}
+files = nanoGetSampleFiles(mcDirectory2, 'WWTo2L2Nu_TT')
+samples['WW_TT_EE'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*27.0',
+    'FilesPerJob': 2,
+}
+
+
+files = nanoGetSampleFiles(mcDirectory, 'WWTo2L2Nu_TL')
+samples['WW_TL'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*8.174732641',
+    'FilesPerJob': 2,
+}
+files = nanoGetSampleFiles(mcDirectory2, 'WWTo2L2Nu_TL')
+samples['WW_TL_EE'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*27.0',
+    'FilesPerJob': 2,
+}
+
+files = nanoGetSampleFiles(mcDirectory, 'WWTo2L2Nu_LT')
+samples['WW_LT'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*8.174732641',
+    'FilesPerJob': 2,
+}
+files = nanoGetSampleFiles(mcDirectory2, 'WWTo2L2Nu_LT')
+samples['WW_LT_EE'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*27.0',
+    'FilesPerJob': 2,
+}
+
+
+### -----------------------------------------------------------------------------------------
+
+
+files = nanoGetSampleFiles(mcDirectory, 'GluGlutoContintoWWtoENuENu') + \
+    nanoGetSampleFiles(mcDirectory, 'GluGlutoContintoWWtoENuMuNu') + \
+    nanoGetSampleFiles(mcDirectory, 'GluGlutoContintoWWtoENuTauNu') +	\
+    nanoGetSampleFiles(mcDirectory, 'GluGlutoContintoWWtoMuNuENu') +	\
+    nanoGetSampleFiles(mcDirectory, 'GluGlutoContintoWWtoMuNuMuNu') +	\
+    nanoGetSampleFiles(mcDirectory, 'GluGlutoContintoWWtoMuNuTauNu') +	\
+    nanoGetSampleFiles(mcDirectory, 'GluGlutoContintoWWtoTauNuENu') +	\
+    nanoGetSampleFiles(mcDirectory, 'GluGlutoContintoWWtoTauNuMuNu') +	\
+    nanoGetSampleFiles(mcDirectory, 'GluGlutoContintoWWtoTauNuTauNu')
+
+samples['ggWW'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*8.174732641',
+    'FilesPerJob': 2,
+}
+
+files = nanoGetSampleFiles(mcDirectory2, 'GluGlutoContintoWWtoENuENu') + \
+    nanoGetSampleFiles(mcDirectory2, 'GluGlutoContintoWWtoENuMuNu') + \
+    nanoGetSampleFiles(mcDirectory2, 'GluGlutoContintoWWtoENuTauNu') +   \
+    nanoGetSampleFiles(mcDirectory2, 'GluGlutoContintoWWtoMuNuENu') +    \
+    nanoGetSampleFiles(mcDirectory2, 'GluGlutoContintoWWtoMuNuMuNu') +   \
+    nanoGetSampleFiles(mcDirectory2, 'GluGlutoContintoWWtoMuNuTauNu') +  \
+    nanoGetSampleFiles(mcDirectory2, 'GluGlutoContintoWWtoTauNuENu') +   \
+    nanoGetSampleFiles(mcDirectory2, 'GluGlutoContintoWWtoTauNuMuNu') +  \
+    nanoGetSampleFiles(mcDirectory2, 'GluGlutoContintoWWtoTauNuTauNu')
+
+samples['ggWW'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*27.0',
+    'FilesPerJob': 2,
+}
+
 
 ###### WGamma #######
 
@@ -293,127 +388,42 @@ samples['VVV_EE'] = {
 }
 
 
+###### ggH Higgs #######
+files = nanoGetSampleFiles(mcDirectory, 'GluGluHToWWTo2L2Nu_M125')
+
+samples['ggH_hww'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*8.174732641',
+    'FilesPerJob': 2,
+}
+
+files = nanoGetSampleFiles(mcDirectory2, 'GluGluHToWWTo2L2Nu_M125')
+
+samples['ggH_hww_EE'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*27.0',
+    'FilesPerJob': 2,
+}
+
+files = nanoGetSampleFiles(mcDirectory, 'VBFHToWWTo2L2Nu_M125')
+
+samples['qqH_hww'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*8.174732641',
+    'FilesPerJob': 2,
+}
+
+files = nanoGetSampleFiles(mcDirectory2, 'VBFHToWWTo2L2Nu_M125')
+
+samples['qqH_hww_EE'] = {
+    'name': files,
+    'weight': mcCommonWeight + '*27.0',
+    'FilesPerJob': 2,
+}
+
 ###########################################
 ################## DATA ###################
 ###########################################
-
-'''
-files = nanoGetSampleFiles(dataDirectory, 'MuonEG_Run2022C-ReReco-v1') + \
-        nanoGetSampleFiles(dataDirectory, 'MuonEG_Run2022D-ReReco-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'MuonEG_Run2022E-Prompt-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'MuonEG_Run2022F-Prompt-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'MuonEG_Run2022G-Prompt-v1')
-
-
-import numpy as np
-print(np.array(files[0][1]))
-print(np.array(files[1][1]))
-print(np.array(files[2][1]))
-print(np.array(files[3][1]))
-print(np.array(files[4][1]))
-
-samples['DATA_EMu'] = {
-    'name': files,
-    'weight': 'LepWPCut*METFilter_DATA*(TriggerCut_EMU)',
-    'weights': [],
-    'isData': ['all'],
-    'FilesPerJob': 25
-}
-
-
-files = nanoGetSampleFiles(dataDirectory, 'SingleMuon_Run2022C-ReReco-v1') +  \
-        nanoGetSampleFiles(dataDirectory, 'Muon_Run2022C-ReReco-v1') +	\
-      	nanoGetSampleFiles(dataDirectory, 'Muon_Run2022D-ReReco-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'Muon_Run2022E-Prompt-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'Muon_Run2022F-Prompt-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'Muon_Run2022G-Prompt-v1')
-
-samples['DATA_Mu'] = {
-    'name': files,
-    'weight': 'LepWPCut*METFilter_DATA*(!TriggerCut_EMU && (TriggerCut_2MU || TriggerCut_1MU))',
-    'weights': [],
-    'isData': ['all'],
-    'FilesPerJob': 25
-}
-
-files = nanoGetSampleFiles(dataDirectory, 'EGamma_Run2022C-ReReco-v1') + \
-      	nanoGetSampleFiles(dataDirectory, 'EGamma_Run2022D-ReReco-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'EGamma_Run2022E-Prompt-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'EGamma_Run2022F-Prompt-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'EGamma_Run2022G-Prompt-v1')
-
-samples['DATA_EG'] = {
-    'name': files,
-    'weight': 'LepWPCut*METFilter_DATA*(!TriggerCut_EMU && !TriggerCut_2MU && !TriggerCut_1MU && (TriggerCut_1EG || TriggerCut_2EG))',
-    'weights': [],
-    'isData': ['all'],
-    'FilesPerJob': 25
-}
-
-#addSampleWeight(samples, 'DATA', 'MuonEG_Run2022C-ReReco-v1', 'TriggerCut_EMU')
-#addSampleWeight(samples, 'DATA', 'MuonEG_Run2022D-ReReco-v1', 'TriggerCut_EMU')
-#addSampleWeight(samples, 'DATA', 'MuonEG_Run2022E-Prompt-v1', 'TriggerCut_EMU')
-#addSampleWeight(samples, 'DATA', 'MuonEG_Run2022F-Prompt-v1', 'TriggerCut_EMU')
-#addSampleWeight(samples, 'DATA', 'MuonEG_Run2022G-Prompt-v1', 'TriggerCut_EMU')
-
-#addSampleWeight(samples, 'DATA', 'SingleMuon_Run2022C-ReReco-v1', '!TriggerCut_EMU && TriggerCut_1MU')
-#addSampleWeight(samples, 'DATA', 'Muon_Run2022C-ReReco-v1', '!TriggerCut_EMU && (TriggerCut_2MU || TriggerCut_1MU)')
-#addSampleWeight(samples, 'DATA', 'Muon_Run2022D-ReReco-v1', '!TriggerCut_EMU && (TriggerCut_2MU || TriggerCut_1MU)')
-#addSampleWeight(samples, 'DATA', 'Muon_Run2022E-Prompt-v1', '!TriggerCut_EMU && (TriggerCut_2MU || TriggerCut_1MU)')
-#addSampleWeight(samples, 'DATA', 'Muon_Run2022F-Prompt-v1', '!TriggerCut_EMU && (TriggerCut_2MU || TriggerCut_1MU)')
-#addSampleWeight(samples, 'DATA', 'Muon_Run2022G-Prompt-v1', '!TriggerCut_EMU && (TriggerCut_2MU || TriggerCut_1MU)')
-
-#addSampleWeight(samples, 'DATA', 'EGamma_Run2022C-ReReco-v1', '!TriggerCut_EMU && !TriggerCut_2MU && !TriggerCut_1MU && (TriggerCut_1EG || TriggerCut_2EG)')
-#addSampleWeight(samples, 'DATA', 'EGamma_Run2022D-ReReco-v1', '!TriggerCut_EMU && !TriggerCut_2MU && !TriggerCut_1MU && (TriggerCut_1EG || TriggerCut_2EG)')
-#addSampleWeight(samples, 'DATA', 'EGamma_Run2022E-Prompt-v1', '!TriggerCut_EMU && !TriggerCut_2MU && !TriggerCut_1MU && (TriggerCut_1EG || TriggerCut_2EG)')
-#addSampleWeight(samples, 'DATA', 'EGamma_Run2022F-Prompt-v1', '!TriggerCut_EMU && !TriggerCut_2MU && !TriggerCut_1MU && (TriggerCut_1EG || TriggerCut_2EG)')
-#addSampleWeight(samples, 'DATA', 'EGamma_Run2022G-Prompt-v1', '!TriggerCut_EMU && !TriggerCut_2MU && !TriggerCut_1MU && (TriggerCut_1EG || TriggerCut_2EG)')
-
-files = nanoGetSampleFiles(dataDirectory, 'MuonEG_Run2022C-ReReco-v1') + \
-        nanoGetSampleFiles(dataDirectory, 'MuonEG_Run2022D-ReReco-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'MuonEG_Run2022E-Prompt-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'MuonEG_Run2022F-Prompt-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'MuonEG_Run2022G-Prompt-v1')
-
-samples['Fake_EMu'] = {
-    'name': files,
-    'weight': 'fakeW*METFilter_DATA*(TriggerCut_EMU)',
-    'weights': [],
-    'isData': ['all'],
-    'FilesPerJob': 25
-}
-
-
-files = nanoGetSampleFiles(dataDirectory, 'SingleMuon_Run2022C-ReReco-v1') +  \
-        nanoGetSampleFiles(dataDirectory, 'Muon_Run2022C-ReReco-v1') +  \
-        nanoGetSampleFiles(dataDirectory, 'Muon_Run2022D-ReReco-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'Muon_Run2022E-Prompt-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'Muon_Run2022F-Prompt-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'Muon_Run2022G-Prompt-v1')
-
-samples['Fake_Mu'] = {
-    'name': files,
-    'weight': 'fakeW*METFilter_DATA*(!TriggerCut_EMU && (TriggerCut_2MU || TriggerCut_1MU))',
-    'weights': [],
-    'isData': ['all'],
-    'FilesPerJob': 25
-}
-
-files = nanoGetSampleFiles(dataDirectory, 'EGamma_Run2022C-ReReco-v1') + \
-        nanoGetSampleFiles(dataDirectory, 'EGamma_Run2022D-ReReco-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'EGamma_Run2022E-Prompt-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'EGamma_Run2022F-Prompt-v1') + \
-        nanoGetSampleFiles(dataDirectory2, 'EGamma_Run2022G-Prompt-v1')
-
-samples['Fake_EG'] = {
-    'name': files,
-    'weight': 'fakeW*METFilter_DATA*(!TriggerCut_EMU && !TriggerCut_2MU && !TriggerCut_1MU && (TriggerCut_1EG || TriggerCut_2EG))',
-    'weights': [],
-    'isData': ['all'],
-    'FilesPerJob': 25
-}
-
-'''
 
 samples['DATA'] = { 
     'name': [],  
